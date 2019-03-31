@@ -1,11 +1,17 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-#[macro_use]
-extern crate rocket;
+#[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
+#[macro_use] extern crate serde_derive;
+
+mod data_types;
 
 use rocket::response::NamedFile;
 use std::path::{Path, PathBuf};
 use std::io;
+use rocket_contrib::json::{Json, JsonValue};
+use std::os::unix::net::UnixStream;
+use std::io::prelude::*;
 
 #[get("/")]
 fn home_page() -> io::Result<NamedFile> {
@@ -17,6 +23,24 @@ fn handlerer(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("static/build/").join(file)).ok().or_else(|| NamedFile::open(Path::new("static/build/index.html")).ok())
 }
 
+#[post("/test", format="json", data="<message>")]
+fn test_post(message: Json<data_types::TestMessage>) -> JsonValue {
+    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
+    stream.write_all(message.0.message.as_bytes()).unwrap();
+
+    json!({"status": "ok"})
+}
+
 fn main() {
-    rocket::ignite().mount("/", routes![home_page, handlerer]).launch();
+    if cfg!(target_os = "windows") {
+        println!("We don't use windows here.");
+        return;
+    }
+
+    rocket::ignite().mount("/",
+    routes![
+        home_page,
+        handlerer,
+        test_post
+    ]).launch();
 }
