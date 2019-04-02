@@ -16,6 +16,11 @@ use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
 use std::sync::RwLock;
 use config::Config;
+use lazy_static::lazy_static;
+
+lazy_static!{
+    static ref SETTINGS: data_types::Settings = data_types::Settings::new().unwrap();
+}
 
 #[get("/")]
 fn home_page() -> io::Result<NamedFile> {
@@ -52,9 +57,6 @@ fn main() {
         println!("No server config file");
         return;
     }
-    let config = data_types::Settings::new().unwrap();
-
-    dbg!(config);
 
     rocket::ignite().mount("/",
     routes![
