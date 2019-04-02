@@ -6,6 +6,7 @@
 
 mod data_types;
 mod utils;
+mod handlers;
 
 use rocket::response::NamedFile;
 use std::path::{Path, PathBuf};
@@ -28,7 +29,7 @@ fn handlerer(file: PathBuf) -> Option<NamedFile> {
 
 #[post("/register", format="json", data="<registerform>")]
 fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader) -> JsonValue {
-    utils::handle_register(auth_header.0, registerform.username, registerform.terms);
+    handlers::handle_register(auth_header.0, registerform.username, registerform.terms);
 
     json!({"status": "ok"})
 }
@@ -53,7 +54,7 @@ fn main() {
     }
     let config = data_types::Settings::new().unwrap();
 
-    dbg!(config.secret.key);
+    dbg!(config);
 
     rocket::ignite().mount("/",
     routes![

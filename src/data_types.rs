@@ -10,12 +10,14 @@ pub struct TestMessage<'wtf> {
     pub message: &'wtf str
 }
 
+// Json from register form
 #[derive(Serialize, Deserialize)]
 pub struct RegisterMessage<'a> {
     pub username: &'a str,
     pub terms: bool
 }
 
+// Authorization token
 #[derive(Debug)]
 pub struct AuthHeader<'a>(pub &'a str);
 
@@ -40,14 +42,22 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader<'a> {
     }
 }
 
+// Settings file
 #[derive(Debug, Deserialize)]
 pub struct Settings {
-    pub secret: Secret
+    pub secret: Secret,
+    pub mongo: Mongo
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Secret {
     pub key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Mongo {
+    pub user: String,
+    pub password: String
 }
 
 impl Settings {
