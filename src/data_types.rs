@@ -2,6 +2,8 @@ use rocket::request::{self, Request, FromRequest};
 use rocket::Outcome;
 use rocket::http::Status;
 use super::utils;
+use config::{ConfigError, Config};
+use std::path::Path;
 
 #[derive(Serialize, Deserialize)]
 pub struct TestMessage<'wtf> {
@@ -35,5 +37,29 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader<'a> {
             1 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Invalid)),
             _ => Outcome::Failure((Status::BadRequest, AuthHeaderError::BadCount)),
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub secret: Secret
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Secret {
+    pub key: String,
+}
+
+impl Settings {
+    pub fn new() -> Result<Self, ConfigError> {
+        let mut settings = Config::new();
+
+        if !Path::new("../server.toml").exists() {
+            println!("No server config file");
+        }
+
+        settings.merge(config::File::with_name("../server"))?;
+
+        settings.try_into()
     }
 }

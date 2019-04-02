@@ -13,7 +13,8 @@ use std::io;
 use rocket_contrib::json::{Json, JsonValue};
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
-
+use std::sync::RwLock;
+use config::Config;
 
 #[get("/")]
 fn home_page() -> io::Result<NamedFile> {
@@ -45,6 +46,14 @@ fn main() {
         println!("We don't use windows here.");
         return;
     }
+
+    if !Path::new("../server.toml").exists() {
+        println!("No server config file");
+        return;
+    }
+    let config = data_types::Settings::new().unwrap();
+
+    dbg!(config.secret.key);
 
     rocket::ignite().mount("/",
     routes![
