@@ -2,7 +2,6 @@ use std::str;
 use mongodb::{Bson, doc};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
-use mongodb::oid::ObjectId;
 use super::SETTINGS;
 use super::data_types;
 use jsonwebtoken::{encode, Header};
@@ -35,7 +34,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<Stri
 
     let client = Client::connect(&SETTINGS.mongo.address.to_string(), SETTINGS.mongo.port).unwrap();
     let db = client.db("admin");
-    let auth_result = db.auth(&SETTINGS.mongo.user, &SETTINGS.mongo.password);
+    let _auth_result = db.auth(&SETTINGS.mongo.user, &SETTINGS.mongo.password);
     let col = client.db("thetahq").collection("users");
 
     let check_username_data = doc! {
@@ -45,7 +44,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<Stri
     let mut cursor = col.find(Some(check_username_data.clone()), None).ok().expect("Failed while executing find");
 
     match cursor.next() {
-        Some(Ok(doc)) => return Err(data_types::RegisterError::ExistsUsername),
+        Some(Ok(_doc)) => return Err(data_types::RegisterError::ExistsUsername),
         Some(Err(_)) => return Err(data_types::RegisterError::Error),
         None => {}
     }
@@ -57,7 +56,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<Stri
     let mut cursor = col.find(Some(check_mail_data.clone()), None).ok().expect("Failed while executing find");
 
     match cursor.next() {
-        Some(Ok(doc)) => return Err(data_types::RegisterError::ExistsEmail),
+        Some(Ok(_doc)) => return Err(data_types::RegisterError::ExistsEmail),
         Some(Err(_)) => return Err(data_types::RegisterError::Error),
         None => {}
     }
@@ -90,7 +89,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<Stri
 
     let token = match encode(&Header::default(), &claims, SETTINGS.secret.key.as_ref()) {
         Ok(tok) => tok,
-        Err(err) => panic!("Token error")
+        Err(_err) => panic!("Token error")
     };
 
     Ok(token)

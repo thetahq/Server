@@ -15,8 +15,6 @@ use std::io;
 use rocket_contrib::json::{Json, JsonValue};
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
-use std::sync::RwLock;
-use config::Config;
 use lazy_static::lazy_static;
 
 lazy_static!{
@@ -50,7 +48,6 @@ fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_t
         Ok(token) => return json!({"status": "ok", "token": token})
     }
 
-    json!({"status": "error", "message": "unknown"})
 }
 
 #[post("/test", format="json", data="<message>")]
