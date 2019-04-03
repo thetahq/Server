@@ -46,7 +46,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader<'a> {
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub secret: Secret,
-    pub mongo: Mongo
+    pub mongo: Mongo,
+    pub auth: AuthRequirements
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +58,19 @@ pub struct Secret {
 #[derive(Debug, Deserialize)]
 pub struct Mongo {
     pub user: String,
-    pub password: String
+    pub password: String,
+    pub address: String,
+    pub port: u16
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthRequirements {
+    pub username_len_min: usize,
+    pub username_len_max: usize,
+    pub password_len_min: usize,
+    pub password_len_max: usize,
+    pub email_len_min: usize,
+    pub email_len_max: usize
 }
 
 impl Settings {
@@ -72,4 +85,22 @@ impl Settings {
 
         settings.try_into()
     }
+}
+
+// Register errors
+#[derive(Debug)]
+pub enum RegisterError {
+    ExistsUsername,
+    ExistsEmail,
+    IllegalCharacters,
+    BadLength,
+    Terms,
+    Error
+}
+
+// JWT
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub uid: String,
+    pub exp: usize
 }

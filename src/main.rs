@@ -35,9 +35,22 @@ fn handlerer(file: PathBuf) -> Option<NamedFile> {
 
 #[post("/register", format="json", data="<registerform>")]
 fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader) -> JsonValue {
-    handlers::handle_register(auth_header.0, registerform.username, registerform.terms);
+    match handlers::handle_register(auth_header.0, registerform.username, registerform.terms) {
+        Err(e) => {
+            dbg!(&e);
+            match e {
+                data_types::RegisterError::ExistsUsername => return json!({"status": "errorExistsUsername", "message": "Exists Username"}),
+                data_types::RegisterError::ExistsEmail => return json!({"status": "error", "message" : "ExistsEmail"}),
+                data_types::RegisterError::IllegalCharacters => return json!({"status": "error", "message": "IllegalCharacters"}),
+                data_types::RegisterError::BadLength => return json!({"status": "error", "message": "BadLength"}),
+                data_types::RegisterError::Terms => return json!({"status": "error", "message": "Terms"}),
+                data_types::RegisterError::Error  => return json!({"status": "error", "message": "unknown"}),
+            }
+        },
+        Ok(token) => return json!({"status": "ok", "token": token})
+    }
 
-    json!({"status": "ok"})
+    json!({"status": "error", "message": "unknown"})
 }
 
 #[post("/test", format="json", data="<message>")]

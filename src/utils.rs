@@ -18,6 +18,5 @@ pub fn is_auth_header_valid(header: &str) -> bool {
         return false;
     }
 
-
     true
 }
