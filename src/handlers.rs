@@ -5,14 +5,15 @@ use mongodb::db::ThreadedDatabase;
 use super::SETTINGS;
 use super::data_types;
 use jsonwebtoken::{encode, Header};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use chrono::prelude::Utc;
 
 pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<String, data_types::RegisterError> {
     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
     let decoded= str::from_utf8(&bytes).unwrap_or_default();
 
     let creds: Vec<&str> = decoded.split(":").collect();
-    // TODO JWT
-    // TODO hash password
     // TODO check if creds does not contain illegal characters
     // TODO optimise it
 
@@ -61,10 +62,14 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<Stri
         None => {}
     }
 
+    let mut hasher = DefaultHasher::new();
+    creds[1].hash(&mut hasher);
+    let pass = hasher.finish();
+
     let doc = doc! {
         "username": username,
         "email": creds[0],
-        "password": "HASHHASH"
+        "password": pass
     };
 
     col.insert_one(doc.clone(), None).ok().expect("Failed to insert document.");
@@ -78,7 +83,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<Stri
             Some(&Bson::ObjectId(ref id)) => {
                 claims = data_types::Claims {
                     uid: id.to_string(),
-                    exp: 10000000
+                    exp: Utc::now().to_rfc3339()
                 }
             },
             _ => return Err(data_types::RegisterError::Error)

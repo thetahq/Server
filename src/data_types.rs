@@ -102,5 +102,5 @@ pub enum RegisterError {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub uid: String,
-    pub exp: usize
+    pub exp: String
 }
