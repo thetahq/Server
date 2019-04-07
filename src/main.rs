@@ -37,7 +37,7 @@ fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_t
         Err(e) => {
             dbg!(&e);
             match e {
-                data_types::RegisterError::ExistsUsername => return json!({"status": "errorExistsUsername", "message": "Exists Username"}),
+                data_types::RegisterError::ExistsUsername => return json!({"status": "error", "message": "ExistsUsername"}),
                 data_types::RegisterError::ExistsEmail => return json!({"status": "error", "message" : "ExistsEmail"}),
                 data_types::RegisterError::IllegalCharacters => return json!({"status": "error", "message": "IllegalCharacters"}),
                 data_types::RegisterError::BadLength => return json!({"status": "error", "message": "BadLength"}),
@@ -45,16 +45,24 @@ fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_t
                 data_types::RegisterError::Error  => return json!({"status": "error", "message": "unknown"}),
             }
         },
-        Ok(token) => return json!({"status": "ok", "token": token})
+        Ok(_) => return json!({"status": "ok", "message": "VerifyEmail"})
     }
+}
 
+#[post("/verifyemail", format="json", data="<verifydata>")]
+fn verify_email(verifydata: Json<data_types::VerifyEmailMessage>) -> JsonValue {
+    match handlers::handle_verify(verifydata.email, verifydata.id) {
+        Ok(_) => return json!({"status": "ok"}),
+        Err(e) => match e {
+            data_types::VerifyResult::Error => return json!({"status": "error"})
+        }
+    }
 }
 
 #[post("/test", format="json", data="<message>")]
 fn test_post(message: Json<data_types::TestMessage>) -> JsonValue {
 //    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
 //    stream.write_all(message.0.message.as_bytes()).unwrap();
-
     json!({"status": "ok"})
 }
 
@@ -74,6 +82,7 @@ fn main() {
         home_page,
         handlerer,
         register,
+        verify_email,
         test_post
     ]).launch();
 }

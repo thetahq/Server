@@ -17,6 +17,13 @@ pub struct RegisterMessage<'a> {
     pub terms: bool
 }
 
+// Json for verify function
+#[derive(Serialize, Deserialize)]
+pub struct VerifyEmailMessage<'a> {
+    pub email: &'a str,
+    pub id: &'a str
+}
+
 // Authorization token
 #[derive(Debug)]
 pub struct AuthHeader<'a>(pub &'a str);
@@ -47,7 +54,9 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader<'a> {
 pub struct Settings {
     pub secret: Secret,
     pub mongo: Mongo,
-    pub auth: AuthRequirements
+    pub auth: AuthRequirements,
+    pub email: Email,
+    pub smtp: Smtp
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,6 +82,19 @@ pub struct AuthRequirements {
     pub email_len_max: usize
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Email {
+    pub noreply: String,
+    pub support: String
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Smtp {
+    pub username: String,
+    pub password: String,
+    pub server: String
+}
+
 impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let mut settings = Config::new();
@@ -95,6 +117,12 @@ pub enum RegisterError {
     IllegalCharacters,
     BadLength,
     Terms,
+    Error
+}
+
+// Verification results
+#[derive(Debug)]
+pub enum VerifyResult {
     Error
 }
 
