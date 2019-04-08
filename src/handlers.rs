@@ -94,7 +94,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
     Ok(())
 }
 
-pub fn handle_verify(email: &str, id: &str) -> Result<(), data_types::VerifyResult>{
+pub fn handle_verify(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
     let client = Client::connect(&SETTINGS.mongo.address.to_string(), SETTINGS.mongo.port).unwrap();
     let db = client.db("admin");
     let _auth_result = db.auth(&SETTINGS.mongo.user, &SETTINGS.mongo.password);

@@ -40,7 +40,7 @@ pub fn send_registration_mail(to: &str, username: &str, id: String) {
                     <td>
                         <table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">
                             <tr>
-                                <td bgcolor=\"#FF00FF\" style=\"padding: 12px 18px 12px 18px; border-radius:3px\" align=\"center\"><a href=\"http://localhost:8000/activation/{}/{}\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; font-weight: normal; color: #ffffff; text-decoration: none; display: inline-block;\">Verify &rarr;</a></td>
+                                <td bgcolor=\"#FF00FF\" style=\"padding: 12px 18px 12px 18px; border-radius:3px\" align=\"center\"><a href=\"http://localhost:8000/activate/{}/{}\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; font-weight: normal; color: #ffffff; text-decoration: none; display: inline-block;\">Verify &rarr;</a></td>
                             </tr>
                         </table>
                     </td>
@@ -59,7 +59,7 @@ pub fn send_registration_mail(to: &str, username: &str, id: String) {
     let mut mailer = SmtpClient::new_simple("smtp.mailgun.org")
         .unwrap()
         .credentials(creds)
-        // .authentication_mechanism(Mechanism::Plain)
+        .authentication_mechanism(Mechanism::Plain)
         .transport();
 
     let result = mailer.send(email.into());
