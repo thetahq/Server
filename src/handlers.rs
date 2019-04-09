@@ -6,6 +6,7 @@ use mongodb::db::ThreadedDatabase;
 use super::SETTINGS;
 use super::data_types;
 use super::utils;
+use super::DB_CL;
 use jsonwebtoken::{encode, Header};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -35,16 +36,11 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
         return Err(data_types::RegisterError::Terms);
     }
 
-    let client = Client::connect(&SETTINGS.mongo.address.to_string(), SETTINGS.mongo.port).unwrap();
-    let db = client.db("admin");
-    let _auth_result = db.auth(&SETTINGS.mongo.user, &SETTINGS.mongo.password);
-    let col = client.db("thetahq").collection("users");
-
     let check_username_data = doc! {
         "username": username
     };
 
-    let mut cursor = col.find(Some(check_username_data.clone()), None).ok().expect("Failed while executing find");
+    let mut cursor = DB_CL.find(Some(check_username_data.clone()), None).ok().expect("Failed while executing find");
 
     match cursor.next() {
         Some(Ok(_doc)) => return Err(data_types::RegisterError::ExistsUsername),
@@ -95,18 +91,13 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
 }
 
 pub fn handle_verify(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
-    let client = Client::connect(&SETTINGS.mongo.address.to_string(), SETTINGS.mongo.port).unwrap();
-    let db = client.db("admin");
-    let _auth_result = db.auth(&SETTINGS.mongo.user, &SETTINGS.mongo.password);
-    let col = client.db("thetahq").collection("users");
-
     let doc = doc! {
         "_id": bson::oid::ObjectId::with_string(id).unwrap(),
         "email": bson::Bson::String(email.to_string()),
         "verified": false
     };
 
-    let update = col.update_one(doc.clone(), doc!{"$set":{"verified": true}}, None).ok();
+    let update = DB_CL.update_one(doc.clone(), doc! {"$set":{"verified": true}}, None).ok();
 
     match update {
         Some(res) => {

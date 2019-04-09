@@ -8,6 +8,7 @@
 mod data_types;
 mod utils;
 mod handlers;
+pub mod database;
 
 use rocket::response::NamedFile;
 use std::path::{Path, PathBuf};
@@ -16,9 +17,11 @@ use rocket_contrib::json::{Json, JsonValue};
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
 use lazy_static::lazy_static;
+use mongodb::coll::Collection;
 
 lazy_static!{
     static ref SETTINGS: data_types::Settings = data_types::Settings::new().unwrap();
+    static ref DB_CL: Collection = database::connect_to_database();
 }
 
 #[get("/")]
@@ -71,6 +74,8 @@ fn main() {
         println!("No server config file");
         return;
     }
+
+    { let _ = &DB_CL.namespace; } // Force initializing database
 
     rocket::ignite().mount("/",
     routes![
