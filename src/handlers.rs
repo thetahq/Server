@@ -52,7 +52,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
         "email": creds[0]
     };
 
-    let mut cursor = col.find(Some(check_mail_data.clone()), None).ok().expect("Failed while executing find");
+    let mut cursor = DB_CL.find(Some(check_mail_data.clone()), None).ok().expect("Failed while executing find");
 
     match cursor.next() {
         Some(Ok(_doc)) => return Err(data_types::RegisterError::ExistsEmail),
@@ -72,9 +72,9 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
         "verified": false
     };
 
-    col.insert_one(doc.clone(), None).ok().expect("Failed to insert document.");
+    DB_CL.insert_one(doc.clone(), None).ok().expect("Failed to insert document.");
 
-    let mut cursor = col.find(Some(doc.clone()), None).ok().expect("Failed while executing find");
+    let mut cursor = DB_CL.find(Some(doc.clone()), None).ok().expect("Failed while executing find");
 
     match cursor.next() {
         Some(Ok(doc)) => match doc.get("_id") {
