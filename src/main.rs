@@ -67,11 +67,6 @@ fn test_post(message: Json<data_types::TestMessage>) -> JsonValue {
 }
 
 fn main() {
-    if cfg!(target_os = "windows") {
-        println!("We don't use windows here.");
-        return;
-    }
-
     if !Path::new("../server.toml").exists() {
         println!("No server config file");
         return;
