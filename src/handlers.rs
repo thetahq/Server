@@ -7,24 +7,24 @@ use super::SETTINGS;
 use super::data_types;
 use super::utils;
 use super::DB_CL;
-use jsonwebtoken::{encode, Header};
+use jsonwebtoken::{encode, Header, decode, Validation};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use chrono::prelude::Utc;
+use chrono::Duration;
+use std::net::SocketAddr;
+use jsonwebtoken::errors::ErrorKind;
+use chrono::offset::TimeZone;
 
-pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), data_types::RegisterError> {
-    let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
-    let decoded= str::from_utf8(&bytes).unwrap_or_default();
-
-    let creds: Vec<&str> = decoded.split(":").collect();
+pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bool, socket: SocketAddr) -> Result<(), data_types::RegisterError> {
     // TODO check if creds does not contain illegal characters
     // TODO optimise it
 
-    if creds[0].len() < SETTINGS.auth.email_len_min || creds[0].len() > SETTINGS.auth.email_len_max {
+    if header.email.len() < SETTINGS.auth.email_len_min || header.email.len() > SETTINGS.auth.email_len_max {
         return Err(data_types::RegisterError::BadLength);
     }
 
-    if creds[1].len() < SETTINGS.auth.password_len_min || creds[1].len() > SETTINGS.auth.password_len_max {
+    if header.password.len() < SETTINGS.auth.password_len_min || header.password.len() > SETTINGS.auth.password_len_max {
         return Err(data_types::RegisterError::BadLength);
     }
 
@@ -49,7 +49,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
     }
 
     let check_mail_data = doc! {
-        "email": creds[0]
+        "email": header.email.to_owned()
     };
 
     let mut cursor = DB_CL.find(Some(check_mail_data.clone()), None).ok().expect("Failed while executing find");
@@ -61,14 +61,14 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
     }
 
     let mut hasher = DefaultHasher::new();
-    creds[1].hash(&mut hasher);
+    header.password.hash(&mut hasher);
     let pass = hasher.finish();
 
     let doc = doc! {
         "username": username,
-        "email": creds[0],
+        "email": header.email.to_owned(),
         "password": pass,
-        "ip": ["someIP"],
+        "ips": [socket.ip().to_string()],
         "verified": false
     };
 
@@ -79,7 +79,7 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
     match cursor.next() {
         Some(Ok(doc)) => match doc.get("_id") {
             Some(&Bson::ObjectId(ref id)) => {
-                utils::send_registration_mail(creds[0], username, id.to_string());
+                utils::send_registration_mail(header.email.to_owned(), username, id.to_string());
             },
             _ => return Err(data_types::RegisterError::Error)
         },
@@ -90,7 +90,69 @@ pub fn handle_register(header: &str, username: &str, terms: bool) -> Result<(), 
     Ok(())
 }
 
-pub fn handle_verify(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
+pub fn handle_signin(header: data_types::AuthHeader, socket: SocketAddr) -> Result<String, data_types::SignInError> {
+    let mut hasher = DefaultHasher::new();
+    header.password.hash(&mut hasher);
+    let pass = hasher.finish();
+
+    let user_data = doc! {
+        "email": header.email.to_owned(),
+        "password": pass
+    };
+
+    match DB_CL.find_one(Some(user_data.clone()), None) {
+        Ok(doc) => match doc {
+            Some(data) => {
+                match data.get("verified") {
+                    Some(&Bson::Boolean(ref verified)) => {
+                        if !verified {
+                            return Err(data_types::SignInError::NotVerified);
+                        }
+
+                        match DB_CL.update_one(data.clone(), doc! {"$push":{"ips": socket.ip().to_string()}}, None).ok() {
+                            Some(res) => {
+                                if res.matched_count != 1 && res.modified_count != 1 {
+                                    return Err(data_types::SignInError::Error);
+                                }
+                            },
+                            None => {
+                                return Err(data_types::SignInError::Error);
+                            }
+                        }
+                    }
+                    _  => return Err(data_types::SignInError::Error)
+                }
+
+                match data.get("_id") {
+                    Some(&Bson::ObjectId(ref id)) => {
+                        let date = Utc::now() + Duration::weeks(1);
+
+                        let claims = data_types::Claims {
+                            uid: id.to_string(),
+                            ip: socket.ip().to_string(),
+                            exp: date.format("%Y-%m-%d").to_string()
+                        };
+
+                        let token = encode(&Header::default(), &claims, SETTINGS.secret.key.as_ref());
+
+                        match token {
+                            Ok(tok)=> return Ok(tok),
+                            Err(_) => return Err(data_types::SignInError::Token)
+                        }
+
+                    },
+                    _ => return Err(data_types::SignInError::Error)
+                }
+            },
+            None => return Err(data_types::SignInError::Invalid)
+        },
+        Err(_) => return Err(data_types::SignInError::Invalid)
+    }
+
+    Err(data_types::SignInError::Error)
+}
+
+pub fn handle_verify_email(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
     let doc = doc! {
         "_id": bson::oid::ObjectId::with_string(id).unwrap(),
         "email": bson::Bson::String(email.to_string()),

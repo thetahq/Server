@@ -18,6 +18,8 @@ use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
 use lazy_static::lazy_static;
 use mongodb::coll::Collection;
+use std::net::SocketAddr;
+use rocket::http::Cookies;
 
 lazy_static!{
     static ref SETTINGS: data_types::Settings = data_types::Settings::new().unwrap();
@@ -35,10 +37,9 @@ fn handlerer(file: PathBuf) -> Option<NamedFile> {
 }
 
 #[post("/register", format="json", data="<registerform>")]
-fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader) -> JsonValue {
-    match handlers::handle_register(auth_header.0, registerform.username, registerform.terms) {
+fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
+    match handlers::handle_register(auth_header, registerform.username, registerform.terms, socket) {
         Err(e) => {
-            dbg!(&e);
             match e {
                 data_types::RegisterError::ExistsUsername => return json!({"status": "error", "message": "ExistsUsername"}),
                 data_types::RegisterError::ExistsEmail => return json!({"status": "error", "message" : "ExistsEmail"}),
@@ -52,9 +53,31 @@ fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_t
     }
 }
 
+#[post("/signin")]
+fn signin(auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
+    match handlers::handle_signin(auth_header, socket) {
+        Err(e) => match e {
+            data_types::SignInError::Invalid => return json!({"status": "error", "message": "InvalidData"}),
+            data_types::SignInError::NotVerified => return json!({"status": "error", "message": "NotVerified"}),
+            data_types::SignInError::Token => return json!({"status": "error", "message": "ErrorToken"}),
+            data_types::SignInError::Error => return json!({"status": "error", "message": "unknown"}),
+        },
+        Ok(token) => return json!({"status": "ok", "message": token})
+    }
+}
+
+#[post("/verifysession")]
+fn verify_session(cookies: Cookies, socket: SocketAddr) -> JsonValue {
+    let token = cookies.get("token").unwrap().value();
+    match utils::check_token(token, socket) {
+        Ok(_) => return json!({"status": "ok", "message": ""}),
+        Err(_) => return json!({"status": "error", "message": "invalidToken"})
+    }
+}
+
 #[post("/verifyemail", format="json", data="<verifydata>")]
 fn verify_email(verifydata: Json<data_types::VerifyEmailMessage>) -> JsonValue {
-    match handlers::handle_verify(verifydata.email, verifydata.id) {
+    match handlers::handle_verify_email(verifydata.email, verifydata.id) {
         Ok(_) => return json!({"status": "ok"}),
         Err(e) => match e {
             data_types::VerifyResult::Error => return json!({"status": "error"})
@@ -81,7 +104,9 @@ fn main() {
     routes![
         home_page,
         handlerer,
+        signin,
         register,
+        verify_session,
         verify_email,
         test_post
     ]).launch();

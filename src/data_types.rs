@@ -26,7 +26,11 @@ pub struct VerifyEmailMessage<'a> {
 
 // Authorization token
 #[derive(Debug)]
-pub struct AuthHeader<'a>(pub &'a str);
+pub struct AuthHeader {
+    pub email: String,
+    pub password: String,
+    pub confirm_password: String
+}
 
 #[derive(Debug)]
 pub enum AuthHeaderError {
@@ -35,14 +39,14 @@ pub enum AuthHeaderError {
     Invalid
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader<'a> {
+impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader {
     type Error = AuthHeaderError;
 
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
         let headers: Vec<_> = request.headers().get("Authorization").collect();
         match headers.len() {
             0 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Missing)),
-            1 if utils::is_auth_header_valid(headers[0]) => Outcome::Success(AuthHeader(headers[0])),
+            1 if utils::is_auth_header_valid(headers[0]) => Outcome::Success(utils::get_creds(headers[0])),
             1 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Invalid)),
             _ => Outcome::Failure((Status::BadRequest, AuthHeaderError::BadCount)),
         }
@@ -120,6 +124,15 @@ pub enum RegisterError {
     Error
 }
 
+// SignIn errors
+#[derive(Debug)]
+pub enum SignInError {
+    NotVerified,
+    Invalid,
+    Token,
+    Error
+}
+
 // Verification results
 #[derive(Debug)]
 pub enum VerifyResult {
@@ -130,5 +143,6 @@ pub enum VerifyResult {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub uid: String,
+    pub ip: String,
     pub exp: String
 }
