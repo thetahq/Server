@@ -1,20 +1,15 @@
 use std::str;
 use bson;
 use mongodb::{Bson, doc};
-use mongodb::{Client, ThreadedClient};
-use mongodb::db::ThreadedDatabase;
 use super::SETTINGS;
 use super::data_types;
 use super::utils;
 use super::DB_CL;
-use jsonwebtoken::{encode, Header, decode, Validation};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use jsonwebtoken::{encode, Header};
 use chrono::prelude::Utc;
 use chrono::Duration;
 use std::net::SocketAddr;
-use jsonwebtoken::errors::ErrorKind;
-use chrono::offset::TimeZone;
+use sha3::{Digest, Sha3_256};
 
 pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bool, socket: SocketAddr) -> Result<(), data_types::RegisterError> {
     // TODO check if creds does not contain illegal characters
@@ -60,14 +55,12 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
         None => {}
     }
 
-    let mut hasher = DefaultHasher::new();
-    header.password.hash(&mut hasher);
-    let pass = hasher.finish();
+    let pass = Sha3_256::digest(header.password.as_bytes());
 
     let doc = doc! {
         "username": username,
         "email": header.email.to_owned(),
-        "password": pass,
+        "password": format!("{:x}", pass),
         "ips": [socket.ip().to_string()],
         "verified": false
     };
@@ -79,6 +72,7 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
     match cursor.next() {
         Some(Ok(doc)) => match doc.get("_id") {
             Some(&Bson::ObjectId(ref id)) => {
+                // @todo sends gets old ID (idk why. It worked before). Database does not refresh or something
                 utils::send_registration_mail(header.email.to_owned(), username, id.to_string());
             },
             _ => return Err(data_types::RegisterError::Error)
@@ -91,13 +85,11 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
 }
 
 pub fn handle_signin(header: data_types::AuthHeader, socket: SocketAddr) -> Result<String, data_types::SignInError> {
-    let mut hasher = DefaultHasher::new();
-    header.password.hash(&mut hasher);
-    let pass = hasher.finish();
+    let pass = Sha3_256::digest(header.password.as_bytes());
 
     let user_data = doc! {
         "email": header.email.to_owned(),
-        "password": pass
+        "password": format!("{:x}", pass)
     };
 
     match DB_CL.find_one(Some(user_data.clone()), None) {
@@ -148,8 +140,6 @@ pub fn handle_signin(header: data_types::AuthHeader, socket: SocketAddr) -> Resu
         },
         Err(_) => return Err(data_types::SignInError::Invalid)
     }
-
-    Err(data_types::SignInError::Error)
 }
 
 pub fn handle_verify_email(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {

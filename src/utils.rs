@@ -106,9 +106,8 @@ pub fn check_token(token: &str, socket: SocketAddr) -> Result<(), ()> {
 
             return Ok(());
         },
-        Err(err) => {
+        Err(_err) => {
             return Err(());
         }
     }
-    Err(())
 }
