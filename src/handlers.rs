@@ -2,6 +2,7 @@ use std::str;
 use bson;
 use mongodb::{Bson, doc};
 use super::SETTINGS;
+use super::REDIS;
 use super::data_types;
 use super::utils;
 use super::DB_CL;
@@ -10,6 +11,7 @@ use chrono::prelude::Utc;
 use chrono::Duration;
 use std::net::SocketAddr;
 use sha3::{Digest, Sha3_256};
+use redis::Commands;
 
 pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bool, socket: SocketAddr) -> Result<(), data_types::RegisterError> {
     // TODO check if creds does not contain illegal characters
@@ -37,6 +39,14 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
 
     let mut cursor = DB_CL.find(Some(check_username_data.clone()), None).ok().expect("Failed while executing find");
 
+    //REDIS
+    let red = REDIS.lock().unwrap();
+    let exists_username: Vec<String> = red.sinter(format!("username:{}", username)).unwrap();
+
+    if exists_username.len() > 0 {
+        return Err(data_types::RegisterError::ExistsUsername);
+    }
+
     match cursor.next() {
         Some(Ok(_doc)) => return Err(data_types::RegisterError::ExistsUsername),
         Some(Err(_)) => return Err(data_types::RegisterError::Error),
@@ -48,6 +58,13 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
     };
 
     let mut cursor = DB_CL.find(Some(check_mail_data.clone()), None).ok().expect("Failed while executing find");
+
+    //REDIS
+    let exists_email: Vec<String> = red.sinter(format!("email:{}", header.email.to_owned())).unwrap();
+
+    if exists_email.len() > 0 {
+        return Err(data_types::RegisterError::ExistsEmail);
+    }
 
     match cursor.next() {
         Some(Ok(_doc)) => return Err(data_types::RegisterError::ExistsEmail),
@@ -67,12 +84,49 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
 
     DB_CL.insert_one(doc.clone(), None).ok().expect("Failed to insert document.");
 
+    //REDIS
+    // @todo use UUID lib for IDs (REPLACE "UID")
+
+    let reg_result: Result<(),redis::RedisError> = red.hset_multiple(format!("user:{}", "UID"), &[
+        ("username", username),
+        ("email", &header.email.to_owned()),
+        ("password", format!("{:x}", pass).as_str()),
+        ("veryfied", "false")
+    ]);
+
+    match reg_result {
+        Ok(_) => {},
+        Err(_err) => return Err(data_types::RegisterError::Error)
+    }
+
+    let ips_set: Result<(),redis::RedisError> = red.sadd(format!("ips:{}", "UID"), &socket.ip().to_string());
+
+    match ips_set {
+        Ok(_) => {},
+        Err(_err) => return Err(data_types::RegisterError::Error)
+    }
+
+    let ref_username: Result<(),redis::RedisError> = red.sadd(format!("username:{}", username), "UID");
+
+    match ref_username {
+        Ok(_) => {},
+        Err(_err) => return Err(data_types::RegisterError::Error)
+    }
+
+    let ref_email: Result<(),redis::RedisError> = red.sadd(format!("email:{}", header.email.to_owned()), "UID");
+
+    match ref_email {
+        Ok(_) => {},
+        Err(_err) => return Err(data_types::RegisterError::Error)
+    }
+
+    // HERE SEND EMAIL WITH UUID
+
     let mut cursor = DB_CL.find(Some(doc.clone()), None).ok().expect("Failed while executing find");
 
     match cursor.next() {
         Some(Ok(doc)) => match doc.get("_id") {
             Some(&Bson::ObjectId(ref id)) => {
-                // @todo sends gets old ID (idk why. It worked before). Database does not refresh or something
                 utils::send_registration_mail(header.email.to_owned(), username, id.to_string());
             },
             _ => return Err(data_types::RegisterError::Error)

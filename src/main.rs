@@ -13,6 +13,7 @@ pub mod database;
 use rocket::response::NamedFile;
 use std::path::{Path, PathBuf};
 use std::io;
+use std::sync::Mutex;
 use rocket_contrib::json::{Json, JsonValue};
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
@@ -20,10 +21,12 @@ use lazy_static::lazy_static;
 use mongodb::coll::Collection;
 use std::net::SocketAddr;
 use rocket::http::Cookies;
+use redis::Connection;
 
 lazy_static!{
     static ref SETTINGS: data_types::Settings = data_types::Settings::new().unwrap();
     static ref DB_CL: Collection = database::connect_to_database();
+    static ref REDIS: Mutex<Connection> = database::connect_to_redis();
 }
 
 #[get("/")]
@@ -99,6 +102,7 @@ fn main() {
     }
 
     { let _ = &DB_CL.namespace; } // Force initializing database
+    { let _ = &REDIS.lock().unwrap().is_open(); } // Force initializing redis
 
     rocket::ignite().mount("/",
     routes![
