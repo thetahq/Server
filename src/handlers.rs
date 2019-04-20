@@ -12,6 +12,7 @@ use chrono::Duration;
 use std::net::SocketAddr;
 use sha3::{Digest, Sha3_256};
 use redis::Commands;
+use uuid::Uuid;
 
 pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bool, socket: SocketAddr) -> Result<(), data_types::RegisterError> {
     // TODO check if creds does not contain illegal characters
@@ -41,9 +42,9 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
 
     //REDIS
     let red = REDIS.lock().unwrap();
-    let exists_username: Vec<String> = red.sinter(format!("username:{}", username)).unwrap();
+    let exists_username: bool = red.exists(format!("username:{}", username)).unwrap();
 
-    if exists_username.len() > 0 {
+    if exists_username {
         return Err(data_types::RegisterError::ExistsUsername);
     }
 
@@ -60,9 +61,9 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
     let mut cursor = DB_CL.find(Some(check_mail_data.clone()), None).ok().expect("Failed while executing find");
 
     //REDIS
-    let exists_email: Vec<String> = red.sinter(format!("email:{}", header.email.to_owned())).unwrap();
+    let exists_email: bool = red.exists(format!("email:{}", header.email.to_owned())).unwrap();
 
-    if exists_email.len() > 0 {
+    if exists_email {
         return Err(data_types::RegisterError::ExistsEmail);
     }
 
@@ -85,9 +86,19 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
     DB_CL.insert_one(doc.clone(), None).ok().expect("Failed to insert document.");
 
     //REDIS
-    // @todo use UUID lib for IDs (REPLACE "UID")
 
-    let reg_result: Result<(),redis::RedisError> = red.hset_multiple(format!("user:{}", "UID"), &[
+    let mut new_uuid = "".to_string();
+
+    loop {
+        new_uuid = Uuid::new_v4().to_string();
+        let uid_exists: bool = red.exists(format!("user:{}", new_uuid.to_owned())).unwrap();
+
+        if !uid_exists {
+            break;
+        }
+    }
+
+    let reg_result: Result<(),redis::RedisError> = red.hset_multiple(format!("user:{}", new_uuid.to_owned()), &[
         ("username", username),
         ("email", &header.email.to_owned()),
         ("password", format!("{:x}", pass).as_str()),
@@ -99,28 +110,28 @@ pub fn handle_register(header: data_types::AuthHeader, username: &str, terms: bo
         Err(_err) => return Err(data_types::RegisterError::Error)
     }
 
-    let ips_set: Result<(),redis::RedisError> = red.sadd(format!("ips:{}", "UID"), &socket.ip().to_string());
+    let ips_set: Result<(),redis::RedisError> = red.sadd(format!("ips:{}", new_uuid.to_owned()), &socket.ip().to_string());
 
     match ips_set {
         Ok(_) => {},
         Err(_err) => return Err(data_types::RegisterError::Error)
     }
 
-    let ref_username: Result<(),redis::RedisError> = red.sadd(format!("username:{}", username), "UID");
+    let ref_username: Result<(),redis::RedisError> = red.sadd(format!("username:{}", username), new_uuid.to_owned());
 
     match ref_username {
         Ok(_) => {},
         Err(_err) => return Err(data_types::RegisterError::Error)
     }
 
-    let ref_email: Result<(),redis::RedisError> = red.sadd(format!("email:{}", header.email.to_owned()), "UID");
+    let ref_email: Result<(),redis::RedisError> = red.sadd(format!("email:{}", header.email.to_owned()), new_uuid.to_owned());
 
     match ref_email {
         Ok(_) => {},
         Err(_err) => return Err(data_types::RegisterError::Error)
     }
 
-    // HERE SEND EMAIL WITH UUID
+    utils::send_registration_mail(header.email.to_owned(), username, new_uuid);
 
     let mut cursor = DB_CL.find(Some(doc.clone()), None).ok().expect("Failed while executing find");
 
@@ -145,6 +156,46 @@ pub fn handle_signin(header: data_types::AuthHeader, socket: SocketAddr) -> Resu
         "email": header.email.to_owned(),
         "password": format!("{:x}", pass)
     };
+
+    //REDIS
+    let red = REDIS.lock().unwrap();
+    
+    let user_id: Vec<String> = red.sinter(format!("email:{}", header.email.to_owned())).unwrap();
+    if user_id.len() == 0 {
+        return Err(data_types::SignInError::Invalid);
+    }
+
+    let user_password: String = red.hget(format!("user:{}", user_id[0]), "password").unwrap();
+    if format!("{:x}", pass) != user_password {
+        return Err(data_types::SignInError::Invalid);
+    }
+
+    let user_verified: bool = red.hget(format!("user:{}", user_id[0]), "verified").unwrap();
+    if !user_verified {
+        return Err(data_types::SignInError::NotVerified);
+    }
+
+    let ips_set: Result<(),redis::RedisError> = red.sadd(format!("ips:{}", user_id[0]), &socket.ip().to_string());
+    match ips_set {
+        Ok(_) => {},
+        Err(_err) => return Err(data_types::SignInError::Error)
+    }
+
+    let date = Utc::now() + Duration::weeks(1);
+
+    let claims = data_types::Claims {
+        uid: user_id[0].to_owned(),
+        ip: socket.ip().to_string(),
+        exp: date.format("%Y-%m-%d").to_string()
+    };
+
+    let token = encode(&Header::default(), &claims, SETTINGS.secret.key.as_ref());
+
+    match token {
+        Ok(tok)=> return Ok(tok),
+        Err(_) => return Err(data_types::SignInError::Token)
+    }
+
 
     match DB_CL.find_one(Some(user_data.clone()), None) {
         Ok(doc) => match doc {
