@@ -1,6 +1,6 @@
-use rocket::request::{self, Request, FromRequest};
-use rocket::Outcome;
-use rocket::http::Status;
+// use rocket::request::{self, Request, FromRequest};
+// use rocket::Outcome;
+// use rocket::http::Status;
 use super::utils;
 use config::{ConfigError, Config};
 use std::path::Path;
@@ -25,33 +25,33 @@ pub struct VerifyEmailMessage<'a> {
 }
 
 // Authorization token
-#[derive(Debug)]
-pub struct AuthHeader {
-    pub email: String,
-    pub password: String,
-    pub confirm_password: String
-}
+// #[derive(Debug)]
+// pub struct AuthHeader {
+//     pub email: String,
+//     pub password: String,
+//     pub confirm_password: String
+// }
 
-#[derive(Debug)]
-pub enum AuthHeaderError {
-    BadCount,
-    Missing,
-    Invalid
-}
+// #[derive(Debug)]
+// pub enum AuthHeaderError {
+//     BadCount,
+//     Missing,
+//     Invalid
+// }
 
-impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader {
-    type Error = AuthHeaderError;
+// impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader {
+//     type Error = AuthHeaderError;
 
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
-        let headers: Vec<_> = request.headers().get("Authorization").collect();
-        match headers.len() {
-            0 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Missing)),
-            1 if utils::is_auth_header_valid(headers[0]) => Outcome::Success(utils::get_creds(headers[0])),
-            1 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Invalid)),
-            _ => Outcome::Failure((Status::BadRequest, AuthHeaderError::BadCount)),
-        }
-    }
-}
+//     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+//         let headers: Vec<_> = request.headers().get("Authorization").collect();
+//         match headers.len() {
+//             0 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Missing)),
+//             1 if utils::is_auth_header_valid(headers[0]) => Outcome::Success(utils::get_creds(headers[0])),
+//             1 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Invalid)),
+//             _ => Outcome::Failure((Status::BadRequest, AuthHeaderError::BadCount)),
+//         }
+//     }
+// }
 
 // Settings file
 #[derive(Debug, Deserialize)]

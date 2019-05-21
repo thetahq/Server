@@ -8,41 +8,47 @@ use super::data_types;
 use std::net::SocketAddr;
 use jsonwebtoken::{decode, Validation};
 use chrono::Utc;
+use chrono::prelude::*;
 use chrono::offset::TimeZone;
 
-pub fn get_creds(header: &str) -> data_types::AuthHeader {
-    let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
-    let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
-
-    let creds: Vec<&str> = decoded.split(":").collect();
-
-    data_types::AuthHeader {
-        email: creds[0].to_owned(),
-        password: creds[1].to_owned(),
-        confirm_password: creds[2].to_owned()
-    }
+pub fn log(message: &str) {
+    let time = chrono::Local::now();
+    println!("[{}:{}:{}] {}", time.hour(), time.minute(), time.second(), message);
 }
 
-pub fn is_auth_header_valid(header: &str) -> bool {
-    let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
-    let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
+// pub fn get_creds(header: &str) -> data_types::AuthHeader {
+//     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
+//     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
 
-    let creds: Vec<&str> = decoded.split(":").collect();
+//     let creds: Vec<&str> = decoded.split(":").collect();
 
-    if creds.len() != 3 {
-        return false;
-    }
+//     data_types::AuthHeader {
+//         email: creds[0].to_owned(),
+//         password: creds[1].to_owned(),
+//         confirm_password: creds[2].to_owned()
+//     }
+// }
 
-    if !creds[0].contains(".") || !creds[0].contains("@") {
-        return false;
-    }
+// pub fn is_auth_header_valid(header: &str) -> bool {
+//     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
+//     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
 
-    if creds[1] != creds[2] {
-        return false;
-    }
+//     let creds: Vec<&str> = decoded.split(":").collect();
 
-    true
-}
+//     if creds.len() != 3 {
+//         return false;
+//     }
+
+//     if !creds[0].contains(".") || !creds[0].contains("@") {
+//         return false;
+//     }
+
+//     if creds[1] != creds[2] {
+//         return false;
+//     }
+
+//     true
+// }
 
 pub fn send_registration_mail(to: String, username: &str, id: String) {
     let email = EmailBuilder::new()
