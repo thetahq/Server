@@ -11,6 +11,8 @@ use chrono::Utc;
 use chrono::prelude::*;
 use chrono::offset::TimeZone;
 use actix_web::{http::header::HeaderMap, http::header::Header};
+//use failure::Fail;
+use crate::data_types::AuthHeaderError;
 
 
 pub fn log(message: &str) {
@@ -18,42 +20,46 @@ pub fn log(message: &str) {
     println!("[{}:{}:{}] {}", time.hour(), time.minute(), time.second(), message);
 }
 
-pub fn get_auth_header(headers: &HeaderMap) -> &'static str {
-    ""
+pub fn get_auth_header(headers: &HeaderMap) -> Result<&str, AuthHeaderError> {
+    match headers.get("Authorization") {
+        Some(header) => return Ok(header.to_str().unwrap()),
+        None => return Err(AuthHeaderError::Missing)
+    }
 }
-// pub fn get_creds(header: &str) -> data_types::AuthHeader {
-//     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
-//     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
 
-//     let creds: Vec<&str> = decoded.split(":").collect();
+ pub fn get_creds(header: &str) -> data_types::AuthHeader {
+     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
+     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
 
-//     data_types::AuthHeader {
-//         email: creds[0].to_owned(),
-//         password: creds[1].to_owned(),
-//         confirm_password: creds[2].to_owned()
-//     }
-// }
+     let creds: Vec<&str> = decoded.split(":").collect();
 
-// pub fn is_auth_header_valid(header: &str) -> bool {
-//     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
-//     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
+     data_types::AuthHeader {
+         email: creds[0].to_owned(),
+         password: creds[1].to_owned(),
+         confirm_password: creds[2].to_owned()
+     }
+ }
 
-//     let creds: Vec<&str> = decoded.split(":").collect();
+ pub fn is_auth_header_valid(header: &str) -> bool {
+     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
+     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();
 
-//     if creds.len() != 3 {
-//         return false;
-//     }
+     let creds: Vec<&str> = decoded.split(":").collect();
 
-//     if !creds[0].contains(".") || !creds[0].contains("@") {
-//         return false;
-//     }
+     if creds.len() != 3 {
+         return false;
+     }
 
-//     if creds[1] != creds[2] {
-//         return false;
-//     }
+     if !creds[0].contains(".") || !creds[0].contains("@") {
+         return false;
+     }
 
-//     true
-// }
+     if creds[1] != creds[2] {
+         return false;
+     }
+
+     true
+ }
 
 pub fn send_registration_mail(to: String, username: &str, id: String) {
     let email = EmailBuilder::new()

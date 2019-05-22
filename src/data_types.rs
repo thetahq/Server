@@ -4,6 +4,7 @@
 use super::utils;
 use config::{ConfigError, Config};
 use std::path::Path;
+use actix_web::{HttpRequest, http::header::HeaderMap, http::header::Header};
 
 #[derive(Serialize, Deserialize)]
 pub struct TestMessage<'wtf> {
@@ -25,33 +26,35 @@ pub struct VerifyEmailMessage<'a> {
 }
 
 // Authorization token
-// #[derive(Debug)]
-// pub struct AuthHeader {
-//     pub email: String,
-//     pub password: String,
-//     pub confirm_password: String
-// }
+#[derive(Debug)]
+pub struct AuthHeader {
+    pub email: String,
+    pub password: String,
+    pub confirm_password: String
+}
 
-// #[derive(Debug)]
-// pub enum AuthHeaderError {
-//     BadCount,
-//     Missing,
-//     Invalid
-// }
+ #[derive(Debug)]
+ pub enum AuthHeaderError {
+     Missing,
+     Invalid
+ }
 
-// impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader {
-//     type Error = AuthHeaderError;
+ impl AuthHeader {
+     pub fn new(request: HttpRequest) -> Result<AuthHeader, AuthHeaderError> {
+         let header = utils::get_auth_header(request.headers());
 
-//     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
-//         let headers: Vec<_> = request.headers().get("Authorization").collect();
-//         match headers.len() {
-//             0 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Missing)),
-//             1 if utils::is_auth_header_valid(headers[0]) => Outcome::Success(utils::get_creds(headers[0])),
-//             1 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Invalid)),
-//             _ => Outcome::Failure((Status::BadRequest, AuthHeaderError::BadCount)),
-//         }
-//     }
-// }
+         match header {
+             Ok(auth_header) => {
+                 if utils::is_auth_header_valid(auth_header) {
+                     return Ok(utils::get_creds(auth_header));
+                 } else {
+                     return Err(AuthHeaderError::Invalid);
+                 }
+             },
+             Err(err) => return Err(err)
+         }
+     }
+ }
 
 // Settings file
 #[derive(Debug, Deserialize)]

@@ -50,14 +50,17 @@ fn handlerer(file: web::Path<String>) -> Result<fs::NamedFile> {
 #[post("/register")]
 fn register(req: HttpRequest) -> &'static str {
     utils::log("OOF");
-    for key in req.headers().keys() {
-        match req.headers().get(key.as_str()) {
-            Some(head) => utils::log(head.to_str().unwrap()),
-            None => utils::log("Could not get the header"),
+
+    let header = data_types::AuthHeader::new(req);
+    match header {
+        Ok(auth_header) => {
+            utils::log(format!("{}:{}:{}", auth_header.email, auth_header.password, auth_header.confirm_password).as_str())
+        },
+        Err(err) => {
+
         }
     }
 
-    utils::get_auth_header(req.headers());
 
     "xDD"
 }
