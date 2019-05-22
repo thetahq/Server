@@ -51,23 +51,17 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
         Ok(auth_header) => {
             match handlers::handle_register(auth_header, register_form.username.as_str(), register_form.terms, req.peer_addr().unwrap()) {
                 Err(e) => {
-                    match e {
-                        data_types::RegisterError::ExistsUsername => outcome!{{"status": "error", "message": "ExistsUsername"}},
-                        data_types::RegisterError::ExistsEmail => outcome!{{"status": "error", "message": "ExistsEmail"}},
-                        data_types::RegisterError::IllegalCharacters => outcome!{{"status": "error", "message": "IllegalCharacters"}},
-                        data_types::RegisterError::BadLength => outcome!{{"status": "error", "message": "BadLength"}},
-                        data_types::RegisterError::Terms => outcome!{{"status": "error", "message": "Terms"}},
-                        data_types::RegisterError::Error => outcome!{{"status": "error", "message": "unknown"}},
+                    match_errors! {
+                            what = e, source = RegisterError, Terms, BadLength, ExistsUsername, ExistsEmail, Error, IllegalCharacters
                     }
                 }
-                Ok(_) => outcome!{{"status": "ok", "message": "VerifyEmail"}}
+                Ok(_) => outcome! {{"status": "ok", "message": "VerifyEmail"}}
             }
         }
         Err(err) => {
-            outcome!{{"status": "error", "message": "unknown"}}
-//            match err {
-                // @todo macro for matching errors
-//            }
+            match_errors! {
+                            what = err, source = AuthHeaderError, Missing, Invalid
+            }
         }
     }
 
