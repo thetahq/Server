@@ -52,7 +52,7 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
             match handlers::handle_register(auth_header, register_form.username.as_str(), register_form.terms, req.peer_addr().unwrap()) {
                 Err(e) => {
                     match_errors! {
-                            what = e, source = RegisterError, Terms, BadLength, ExistsUsername, ExistsEmail, Error, IllegalCharacters
+                        what = e, source = RegisterError, Terms, BadLength, ExistsUsername, ExistsEmail, Error, IllegalCharacters
                     }
                 }
                 Ok(_) => outcome! {{"status": "ok", "message": "VerifyEmail"}}
@@ -60,7 +60,7 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
         }
         Err(err) => {
             match_errors! {
-                            what = err, source = AuthHeaderError, Missing, Invalid
+                what = err, source = AuthHeaderError, Missing, Invalid
             }
         }
     }
@@ -68,23 +68,6 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
 
     return Ok(r#"{"status": "ok", "message": "VerifyEmail"}"#.to_string())
 }
-// #[post("/register", format="json", data="<registerform>")]
-// fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
-//     match handlers::handle_register(auth_header, registerform.username, registerform.terms, socket) {
-//         Err(e) => {
-//             match e {
-//                 data_types::RegisterError::ExistsUsername => return json!({"status": "error", "message": "ExistsUsername"}),
-//                 data_types::RegisterError::ExistsEmail => return json!({"status": "error", "message" : "ExistsEmail"}),
-//                 data_types::RegisterError::IllegalCharacters => return json!({"status": "error", "message": "IllegalCharacters"}),
-//                 data_types::RegisterError::BadLength => return json!({"status": "error", "message": "BadLength"}),
-//                 data_types::RegisterError::Terms => return json!({"status": "error", "message": "Terms"}),
-//                 data_types::RegisterError::Error  => return json!({"status": "error", "message": "unknown"}),
-//             }
-//         },
-//         Ok(_) => return json!({"status": "ok", "message": "VerifyEmail"})
-//     }
-// }
-
 
 // #[post("/signin")]
 // fn signin(auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
