@@ -10,12 +10,17 @@ use jsonwebtoken::{decode, Validation};
 use chrono::Utc;
 use chrono::prelude::*;
 use chrono::offset::TimeZone;
+use actix_web::{http::header::HeaderMap, http::header::Header};
+
 
 pub fn log(message: &str) {
     let time = chrono::Local::now();
     println!("[{}:{}:{}] {}", time.hour(), time.minute(), time.second(), message);
 }
 
+pub fn get_auth_header(headers: &HeaderMap) -> &'static str {
+    ""
+}
 // pub fn get_creds(header: &str) -> data_types::AuthHeader {
 //     let bytes = base64::decode(header.trim_start_matches("Basic ")).unwrap_or_default();
 //     let decoded: &str = str::from_utf8(&bytes).unwrap_or_default();

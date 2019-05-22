@@ -15,13 +15,14 @@ use std::io;
 use std::sync::Mutex;
 // use rocket_contrib::json::{Json, JsonValue};
 use std::os::unix::net::UnixStream;
-use std::io::prelude::*;
+//use std::io::prelude::*;
 use lazy_static::lazy_static;
-use std::net::SocketAddr;
+//use std::net::SocketAddr;
 // use rocket::http::Cookies;
-use redis::Connection;
-use actix_web::{get, web, App, HttpServer, Responder, Result, HttpRequest, middleware};
+//use redis::Connection;
+use actix_web::{get, post, web, App, HttpServer, Result, HttpRequest, middleware, http::header::HeaderMap, http::header::Header};
 use actix_files as fs;
+//use failure::Fail;
 
 lazy_static!{
     static ref SETTINGS: data_types::Settings = data_types::Settings::new().unwrap();
@@ -46,6 +47,20 @@ fn handlerer(file: web::Path<String>) -> Result<fs::NamedFile> {
     }
 }
 
+#[post("/register")]
+fn register(req: HttpRequest) -> &'static str {
+    utils::log("OOF");
+    for key in req.headers().keys() {
+        match req.headers().get(key.as_str()) {
+            Some(head) => utils::log(head.to_str().unwrap()),
+            None => utils::log("Could not get the header"),
+        }
+    }
+
+    utils::get_auth_header(req.headers());
+
+    "xDD"
+}
 // #[post("/register", format="json", data="<registerform>")]
 // fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
 //     match handlers::handle_register(auth_header, registerform.username, registerform.terms, socket) {
@@ -62,6 +77,8 @@ fn handlerer(file: web::Path<String>) -> Result<fs::NamedFile> {
 //         Ok(_) => return json!({"status": "ok", "message": "VerifyEmail"})
 //     }
 // }
+
+
 
 // #[post("/signin")]
 // fn signin(auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
@@ -118,6 +135,7 @@ fn main() {
             .wrap(middleware::Logger::default())
             .service(home_page)
             .service(handlerer)
+            .service(register)
     ).bind("127.0.0.1:8000").expect("Could not bind to 8000 port").run();
 
     // rocket::ignite().mount("/",
