@@ -12,9 +12,9 @@ pub struct TestMessage<'wtf> {
 }
 
 // Json from register form
-#[derive(Serialize, Deserialize)]
-pub struct RegisterMessage<'a> {
-    pub username: &'a str,
+#[derive(Deserialize)]
+pub struct RegisterMessage {
+    pub username: String,
     pub terms: bool
 }
 
@@ -40,7 +40,7 @@ pub struct AuthHeader {
  }
 
  impl AuthHeader {
-     pub fn new(request: HttpRequest) -> Result<AuthHeader, AuthHeaderError> {
+     pub fn new(request: &HttpRequest) -> Result<AuthHeader, AuthHeaderError> {
          let header = utils::get_auth_header(request.headers());
 
          match header {
@@ -60,7 +60,7 @@ pub struct AuthHeader {
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub secret: Secret,
-    pub mongo: Mongo,
+    pub redis: Redis,
     pub auth: AuthRequirements,
     pub email: Email,
     pub smtp: Smtp
@@ -72,7 +72,7 @@ pub struct Secret {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Mongo {
+pub struct Redis {
     pub user: String,
     pub password: String,
     pub address: String,

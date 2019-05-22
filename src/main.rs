@@ -1,37 +1,32 @@
-// #![feature(proc_macro_hygiene, decl_macro)]
+#[macro_use]
+extern crate serde_derive;
 
-// #[macro_use] extern crate rocket;
-// #[macro_use] extern crate rocket_contrib;
-#[macro_use] extern crate serde_derive;
-
+#[macro_use]
+mod macros;
 mod data_types;
 mod utils;
 mod handlers;
 pub mod database;
 
-// use rocket::response::NamedFile;
 use std::path::{Path, PathBuf};
 use std::io;
 use std::sync::Mutex;
-// use rocket_contrib::json::{Json, JsonValue};
 use std::os::unix::net::UnixStream;
-//use std::io::prelude::*;
 use lazy_static::lazy_static;
-//use std::net::SocketAddr;
-// use rocket::http::Cookies;
-//use redis::Connection;
+use redis::Connection;
 use actix_web::{get, post, web, App, HttpServer, Result, HttpRequest, middleware, http::header::HeaderMap, http::header::Header};
 use actix_files as fs;
-//use failure::Fail;
+use serde_json::json;
+use actix_web::web::Json;
 
-lazy_static!{
+lazy_static! {
     static ref SETTINGS: data_types::Settings = data_types::Settings::new().unwrap();
-    // static ref REDIS: Mutex<Connection> = database::connect_to_redis();
+    static ref REDIS: Mutex<Connection> = database::connect_to_redis();
 }
 
 #[get("/")]
 fn home_page() -> Result<fs::NamedFile> {
-    utils::log("GET -> index");
+    utils::log("GET -> /");
     Ok(fs::NamedFile::open("static/build/index.html")?)
 }
 
@@ -48,21 +43,36 @@ fn handlerer(file: web::Path<String>) -> Result<fs::NamedFile> {
 }
 
 #[post("/register")]
-fn register(req: HttpRequest) -> &'static str {
-    utils::log("OOF");
+fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessage>) -> Result<String> {
+    utils::log("POST -> /register");
 
-    let header = data_types::AuthHeader::new(req);
+    let header = data_types::AuthHeader::new(&req);
     match header {
         Ok(auth_header) => {
-            utils::log(format!("{}:{}:{}", auth_header.email, auth_header.password, auth_header.confirm_password).as_str())
-        },
+            match handlers::handle_register(auth_header, register_form.username.as_str(), register_form.terms, req.peer_addr().unwrap()) {
+                Err(e) => {
+                    match e {
+                        data_types::RegisterError::ExistsUsername => outcome!{{"status": "error", "message": "ExistsUsername"}},
+                        data_types::RegisterError::ExistsEmail => outcome!{{"status": "error", "message": "ExistsEmail"}},
+                        data_types::RegisterError::IllegalCharacters => outcome!{{"status": "error", "message": "IllegalCharacters"}},
+                        data_types::RegisterError::BadLength => outcome!{{"status": "error", "message": "BadLength"}},
+                        data_types::RegisterError::Terms => outcome!{{"status": "error", "message": "Terms"}},
+                        data_types::RegisterError::Error => outcome!{{"status": "error", "message": "unknown"}},
+                    }
+                }
+                Ok(_) => outcome!{{"status": "ok", "message": "VerifyEmail"}}
+            }
+        }
         Err(err) => {
-
+            outcome!{{"status": "error", "message": "unknown"}}
+//            match err {
+                // @todo macro for matching errors
+//            }
         }
     }
 
 
-    "xDD"
+    return Ok(r#"{"status": "ok", "message": "VerifyEmail"}"#.to_string())
 }
 // #[post("/register", format="json", data="<registerform>")]
 // fn register(registerform: Json<data_types::RegisterMessage>, auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
@@ -80,7 +90,6 @@ fn register(req: HttpRequest) -> &'static str {
 //         Ok(_) => return json!({"status": "ok", "message": "VerifyEmail"})
 //     }
 // }
-
 
 
 // #[post("/signin")]
@@ -128,8 +137,8 @@ fn main() {
         return;
     }
 
-    // { let _ = &REDIS.lock().unwrap().is_open(); } // Force initializing redis
-    
+    { let _ = &REDIS.lock().unwrap().is_open(); } // Force initializing redis
+
     utils::log("Starting the server");
 
     HttpServer::new(
