@@ -103,15 +103,19 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
 //     }
 // }
 
-// #[post("/verifyemail", format="json", data="<verifydata>")]
-// fn verify_email(verifydata: Json<data_types::VerifyEmailMessage>) -> JsonValue {
-//     match handlers::handle_verify_email(verifydata.email, verifydata.id) {
-//         Ok(_) => return json!({"status": "ok"}),
-//         Err(e) => match e {
-//             data_types::VerifyResult::Error => return json!({"status": "error"})
-//         }
-//     }
-// }
+ #[post("/verifyemail")]
+ fn verify_email(verify_data: web::Json<data_types::VerifyEmailMessage>) -> Result<String> {
+     utils::log("POST -> /verifyemail");
+
+     match handlers::handle_verify_email(verify_data.email.as_str(), verify_data.id.as_str()) {
+         Ok(_) => outcome! {{"status": "ok", "message": "verified"}},
+         Err(e) => {
+             match_errors! {
+                what = e, source = VerifyResult, Error
+             }
+         }
+     }
+ }
 
 // #[post("/test", format="json", data="<message>")]
 // fn test_post(message: Json<data_types::TestMessage>) -> JsonValue {
@@ -138,6 +142,7 @@ fn main() {
             .service(handlerer)
             .service(register)
             .service(signin)
+            .service(verify_email)
     ).bind("127.0.0.1:8000").expect("Could not bind to 8000 port").run();
 
     // rocket::ignite().mount("/",

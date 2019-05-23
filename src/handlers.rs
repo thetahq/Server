@@ -143,24 +143,24 @@
      }
  }
 
-// pub fn handle_verify_email(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
-//     let red = REDIS.lock().unwrap();
-//     let user_email: Vec<String> = red.sinter(format!("email:{}", email)).unwrap();
+ pub fn handle_verify_email(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
+     let red = REDIS.lock().unwrap();
+     let user_email: Vec<String> = red.sinter(format!("email:{}", email)).unwrap();
 
-//     if user_email.len() == 0 {
-//         return Err(data_types::VerifyResult::Error);
-//     }
+     if user_email.len() == 0 {
+         return Err(data_types::VerifyResult::Error);
+     }
 
-//     if user_email[0] != id {
-//         return Err(data_types::VerifyResult::Error);
-//     }
+     if user_email[0] != id {
+         return Err(data_types::VerifyResult::Error);
+     }
 
-//     let set_result: Result<(),redis::RedisError> = red.hset(format!("user:{}", id), "verified", "true");
+     let set_result: Result<(),redis::RedisError> = red.hset(format!("user:{}", id), "verified", "true");
 
-//     match set_result {
-//         Ok(_) => {},
-//         Err(_err) => return Err(data_types::VerifyResult::Error)
-//     }
+     match set_result {
+         Ok(_) => {},
+         Err(_err) => return Err(data_types::VerifyResult::Error)
+     }
 
-//     Ok(())
-// }
+     Ok(())
+ }

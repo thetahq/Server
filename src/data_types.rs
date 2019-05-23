@@ -20,9 +20,9 @@ pub struct RegisterMessage {
 
 // Json for verify function
 #[derive(Serialize, Deserialize)]
-pub struct VerifyEmailMessage<'a> {
-    pub email: &'a str,
-    pub id: &'a str
+pub struct VerifyEmailMessage {
+    pub email: String,
+    pub id: String
 }
 
 // Authorization token

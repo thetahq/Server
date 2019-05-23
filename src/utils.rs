@@ -100,9 +100,9 @@ pub fn send_registration_mail(to: String, username: &str, id: String) {
     let result = mailer.send(email.into());
 
     if result.is_ok() {
-        println!("Verification email sent to {}", to);
+        log(format!("Verification email sent to {}", to).as_str());
     } else {
-        println!("Could not send email to {}: {:?}", to, result);
+        log(format!("Could not send email to {}: {:?}", to, result).as_str());
     }
 }
 
