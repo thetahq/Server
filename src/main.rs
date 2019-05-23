@@ -66,21 +66,33 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
     }
 
 
-    return Ok(r#"{"status": "ok", "message": "VerifyEmail"}"#.to_string())
+    outcome! {{"status": "error", "message": "unknown"}}
 }
 
-// #[post("/signin")]
-// fn signin(auth_header: data_types::AuthHeader, socket: SocketAddr) -> JsonValue {
-//     match handlers::handle_signin(auth_header, socket) {
-//         Err(e) => match e {
-//             data_types::SignInError::Invalid => return json!({"status": "error", "message": "InvalidData"}),
-//             data_types::SignInError::NotVerified => return json!({"status": "error", "message": "NotVerified"}),
-//             data_types::SignInError::Token => return json!({"status": "error", "message": "ErrorToken"}),
-//             data_types::SignInError::Error => return json!({"status": "error", "message": "unknown"}),
-//         },
-//         Ok(token) => return json!({"status": "ok", "message": token})
-//     }
-// }
+ #[post("/signin")]
+ fn signin(req: HttpRequest) -> Result<String> {
+     // @todo check if not already signed in
+     utils::log("POST -> /signin");
+
+     let header = data_types::AuthHeader::new(&req);
+     match header {
+         Ok(auth_header) => {
+             match handlers::handle_signin(auth_header, req.peer_addr().unwrap()) {
+                 Err(e) => {
+                     match_errors! {
+                        what = e, source = SignInError, Invalid, NotVerified, Token, Error
+                    }
+                 }
+                 Ok(token) => outcome! {{"status": "ok", "message": token}}
+             }
+         }
+         Err(err) => {
+             match_errors! {
+                what = err, source = AuthHeaderError, Missing, Invalid
+            }
+         }
+     }
+ }
 
 // #[post("/verifysession")]
 // fn verify_session(cookies: Cookies, socket: SocketAddr) -> JsonValue {
@@ -125,6 +137,7 @@ fn main() {
             .service(home_page)
             .service(handlerer)
             .service(register)
+            .service(signin)
     ).bind("127.0.0.1:8000").expect("Could not bind to 8000 port").run();
 
     // rocket::ignite().mount("/",

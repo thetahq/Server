@@ -17,7 +17,6 @@ macro_rules! match_errors {
             $(
                 data_types::$source::$error => outcome!{{"status": "error", "message": format!("{}", stringify!($error))}},
             )*
-            _ => {}
         }
     };
 }

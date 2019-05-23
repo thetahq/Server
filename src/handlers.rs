@@ -95,47 +95,53 @@
      Ok(())
  }
 
-// pub fn handle_signin(header: data_types::AuthHeader, socket: SocketAddr) -> Result<String, data_types::SignInError> {
-//     let pass = Sha3_256::digest(header.password.as_bytes());
+ pub fn handle_signin(header: data_types::AuthHeader, socket: SocketAddr) -> Result<String, data_types::SignInError> {
+     let pass = Sha3_256::digest(header.password.as_bytes());
 
-//     let red = REDIS.lock().unwrap();
+     let red = REDIS.lock().unwrap();
     
-//     let user_id: Vec<String> = red.sinter(format!("email:{}", header.email.to_owned())).unwrap();
-//     if user_id.len() == 0 {
-//         return Err(data_types::SignInError::Invalid);
-//     }
+     let user_id: Vec<String> = red.sinter(format!("email:{}", header.email.to_owned())).unwrap();
+     if user_id.len() == 0 {
+         return Err(data_types::SignInError::Invalid);
+     }
 
-//     let user_password: String = red.hget(format!("user:{}", user_id[0]), "password").unwrap();
-//     if format!("{:x}", pass) != user_password {
-//         return Err(data_types::SignInError::Invalid);
-//     }
+     let user_password: String = red.hget(format!("user:{}", user_id[0]), "password").unwrap();
+     if format!("{:x}", pass) != user_password {
+         return Err(data_types::SignInError::Invalid);
+     }
 
-//     let user_verified: bool = red.hget(format!("user:{}", user_id[0]), "verified").unwrap();
-//     if !user_verified {
-//         return Err(data_types::SignInError::NotVerified);
-//     }
+     let user_verified: String = red.hget(format!("user:{}", user_id[0]), "verified").unwrap();
 
-//     let ips_set: Result<(),redis::RedisError> = red.sadd(format!("ips:{}", user_id[0]), &socket.ip().to_string());
-//     match ips_set {
-//         Ok(_) => {},
-//         Err(_err) => return Err(data_types::SignInError::Error)
-//     }
+     match user_verified.parse::<bool>() {
+         Ok(verified) => {
+            if !verified {
+                return Err(data_types::SignInError::NotVerified);
+            }
+         }
+         Err(_) => return Err(data_types::SignInError::Error)
+     }
 
-//     let date = Utc::now() + Duration::weeks(1);
+     let ips_set: Result<(),redis::RedisError> = red.sadd(format!("ips:{}", user_id[0]), &socket.ip().to_string());
+     match ips_set {
+         Ok(_) => {},
+         Err(_err) => return Err(data_types::SignInError::Error)
+     }
 
-//     let claims = data_types::Claims {
-//         uid: user_id[0].to_owned(),
-//         ip: socket.ip().to_string(),
-//         exp: date.format("%Y-%m-%d").to_string()
-//     };
+     let date = Utc::now() + Duration::weeks(1);
 
-//     let token = encode(&Header::default(), &claims, SETTINGS.secret.key.as_ref());
+     let claims = data_types::Claims {
+         uid: user_id[0].to_owned(),
+         ip: socket.ip().to_string(),
+         exp: date.format("%Y-%m-%d").to_string()
+     };
 
-//     match token {
-//         Ok(tok)=> return Ok(tok),
-//         Err(_) => return Err(data_types::SignInError::Token)
-//     }
-// }
+     let token = encode(&Header::default(), &claims, SETTINGS.secret.key.as_ref());
+
+     match token {
+         Ok(tok)=> return Ok(tok),
+         Err(_) => return Err(data_types::SignInError::Token)
+     }
+ }
 
 // pub fn handle_verify_email(email: &str, id: &str) -> Result<(), data_types::VerifyResult> {
 //     let red = REDIS.lock().unwrap();
