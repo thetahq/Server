@@ -96,6 +96,8 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
 
  #[post("/verifysession")]
  fn verify_session(req: HttpRequest) -> Result<String> {
+     utils::log("POST -> /verifysession");
+
      match req.cookie("token") {
          Some(cookie) => match utils::check_token(cookie.value(), req.peer_addr().unwrap()) {
              Ok(_) => outcome! {{"status": "ok", "message": ""}},
@@ -121,12 +123,14 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
 
  #[post("/test")]
  fn test_post(message: web::Json<data_types::TestMessage>) -> Result<String> {
- //    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
+     utils::log("POST -> /test");
+     //    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
  //    stream.write_all(message.0.message.as_bytes()).unwrap();
      outcome! {{"status": "ok"}}
  }
 
 fn main() {
+    //@todo middleware logs for every request
     if !Path::new("../server.toml").exists() {
         println!("No server config file");
         return;
