@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use std::os::unix::net::UnixStream;
 use lazy_static::lazy_static;
 use redis::Connection;
-use actix_web::{get, post, web, App, HttpServer, Result, HttpRequest, middleware, http::header::HeaderMap, http::header::Header};
+use actix_web::{get, post, web, App, HttpServer, Result, HttpMessage, HttpRequest, middleware, http::header::HeaderMap, http::header::Header};
 use actix_files as fs;
 use serde_json::json;
 use actix_web::web::Json;
@@ -94,14 +94,16 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
      }
  }
 
-// #[post("/verifysession")]
-// fn verify_session(cookies: Cookies, socket: SocketAddr) -> JsonValue {
-//     let token = cookies.get("token").unwrap().value();
-//     match utils::check_token(token, socket) {
-//         Ok(_) => return json!({"status": "ok", "message": ""}),
-//         Err(_) => return json!({"status": "error", "message": "invalidToken"})
-//     }
-// }
+ #[post("/verifysession")]
+ fn verify_session(req: HttpRequest) -> Result<String> {
+     match req.cookie("token") {
+         Some(cookie) => match utils::check_token(cookie.value(), req.peer_addr().unwrap()) {
+             Ok(_) => outcome! {{"status": "ok", "message": ""}},
+             Err(_) => outcome! {{"status": "error", "message": "invalidToken"}}
+         },
+         None => outcome! {{"status": "error", "message": "noToken"}}
+     }
+ }
 
  #[post("/verifyemail")]
  fn verify_email(verify_data: web::Json<data_types::VerifyEmailMessage>) -> Result<String> {
@@ -117,12 +119,12 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
      }
  }
 
-// #[post("/test", format="json", data="<message>")]
-// fn test_post(message: Json<data_types::TestMessage>) -> JsonValue {
-// //    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
-// //    stream.write_all(message.0.message.as_bytes()).unwrap();
-//     json!({"status": "ok"})
-// }
+ #[post("/test")]
+ fn test_post(message: web::Json<data_types::TestMessage>) -> Result<String> {
+ //    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
+ //    stream.write_all(message.0.message.as_bytes()).unwrap();
+     outcome! {{"status": "ok"}}
+ }
 
 fn main() {
     if !Path::new("../server.toml").exists() {
@@ -143,16 +145,7 @@ fn main() {
             .service(register)
             .service(signin)
             .service(verify_email)
+            .service(verify_session)
+            .service(test_post)
     ).bind("127.0.0.1:8000").expect("Could not bind to 8000 port").run();
-
-    // rocket::ignite().mount("/",
-    // routes![
-    //     home_page,
-    //     handlerer,
-    //     signin,
-    //     register,
-    //     verify_session,
-    //     verify_email,
-    //     test_post
-    // ]).launch();
 }

@@ -7,8 +7,8 @@ use std::path::Path;
 use actix_web::{HttpRequest, http::header::HeaderMap, http::header::Header};
 
 #[derive(Serialize, Deserialize)]
-pub struct TestMessage<'wtf> {
-    pub message: &'wtf str
+pub struct TestMessage {
+    pub message: String
 }
 
 // Json from register form
