@@ -1,5 +1,4 @@
-use super::data_types;
-
+#[allow(unreachable_code)]
 macro_rules! outcome {
     ({"status": $status:expr, "message": $message:expr}) => {
         return Ok(format!("{{\"status\": \"{}\", \"message\": \"{}\"}}", $status, $message))
@@ -10,7 +9,6 @@ macro_rules! outcome {
     };
 }
 
-#[macro_export]
 macro_rules! match_errors {
     (what = $what:expr, source = $source:ident, $($error:ident),*) => {
         $(

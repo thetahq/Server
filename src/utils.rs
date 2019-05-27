@@ -10,7 +10,7 @@ use jsonwebtoken::{decode, Validation};
 use chrono::Utc;
 use chrono::prelude::*;
 use chrono::offset::TimeZone;
-use actix_web::{http::header::HeaderMap, http::header::Header};
+use actix_web::{http::header::HeaderMap};
 //use failure::Fail;
 use crate::data_types::AuthHeaderError;
 

@@ -1,4 +1,3 @@
-use redis::Commands;
 use redis::Connection;
 use std::sync::Mutex;
 

@@ -1,10 +1,7 @@
-// use rocket::request::{self, Request, FromRequest};
-// use rocket::Outcome;
-// use rocket::http::Status;
 use super::utils;
 use config::{ConfigError, Config};
 use std::path::Path;
-use actix_web::{HttpRequest, http::header::HeaderMap, http::header::Header};
+use actix_web::HttpRequest;
 
 #[derive(Serialize, Deserialize)]
 pub struct TestMessage {

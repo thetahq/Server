@@ -15,9 +15,8 @@ use std::sync::Mutex;
 use std::os::unix::net::UnixStream;
 use lazy_static::lazy_static;
 use redis::Connection;
-use actix_web::{get, post, web, App, HttpServer, Result, HttpMessage, HttpRequest, middleware, http::header::HeaderMap, http::header::Header, middleware::Compress};
+use actix_web::{get, post, web, App, HttpServer, Result, HttpMessage, HttpRequest, middleware::Compress};
 use actix_files as fs;
-use serde_json::json;
 use actix_web::web::Json;
 
 lazy_static! {
