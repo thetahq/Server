@@ -1,27 +1,25 @@
-use rocket::request::{self, Request, FromRequest};
-use rocket::Outcome;
-use rocket::http::Status;
 use super::utils;
 use config::{ConfigError, Config};
 use std::path::Path;
+use actix_web::HttpRequest;
 
 #[derive(Serialize, Deserialize)]
-pub struct TestMessage<'wtf> {
-    pub message: &'wtf str
+pub struct TestMessage {
+    pub message: String
 }
 
 // Json from register form
-#[derive(Serialize, Deserialize)]
-pub struct RegisterMessage<'a> {
-    pub username: &'a str,
+#[derive(Deserialize)]
+pub struct RegisterMessage {
+    pub username: String,
     pub terms: bool
 }
 
 // Json for verify function
 #[derive(Serialize, Deserialize)]
-pub struct VerifyEmailMessage<'a> {
-    pub email: &'a str,
-    pub id: &'a str
+pub struct VerifyEmailMessage {
+    pub email: String,
+    pub id: String
 }
 
 // Authorization token
@@ -32,32 +30,34 @@ pub struct AuthHeader {
     pub confirm_password: String
 }
 
-#[derive(Debug)]
-pub enum AuthHeaderError {
-    BadCount,
-    Missing,
-    Invalid
-}
+ #[derive(Debug)]
+ pub enum AuthHeaderError {
+     Missing,
+     Invalid
+ }
 
-impl<'a, 'r> FromRequest<'a, 'r> for AuthHeader {
-    type Error = AuthHeaderError;
+ impl AuthHeader {
+     pub fn new(request: &HttpRequest) -> Result<AuthHeader, AuthHeaderError> {
+         let header = utils::get_auth_header(request.headers());
 
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
-        let headers: Vec<_> = request.headers().get("Authorization").collect();
-        match headers.len() {
-            0 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Missing)),
-            1 if utils::is_auth_header_valid(headers[0]) => Outcome::Success(utils::get_creds(headers[0])),
-            1 => Outcome::Failure((Status::BadRequest, AuthHeaderError::Invalid)),
-            _ => Outcome::Failure((Status::BadRequest, AuthHeaderError::BadCount)),
-        }
-    }
-}
+         match header {
+             Ok(auth_header) => {
+                 if utils::is_auth_header_valid(auth_header) {
+                     return Ok(utils::get_creds(auth_header));
+                 } else {
+                     return Err(AuthHeaderError::Invalid);
+                 }
+             },
+             Err(err) => return Err(err)
+         }
+     }
+ }
 
 // Settings file
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub secret: Secret,
-    pub mongo: Mongo,
+    pub redis: Redis,
     pub auth: AuthRequirements,
     pub email: Email,
     pub smtp: Smtp
@@ -69,7 +69,7 @@ pub struct Secret {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Mongo {
+pub struct Redis {
     pub user: String,
     pub password: String,
     pub address: String,
