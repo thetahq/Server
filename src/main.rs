@@ -6,6 +6,7 @@ mod macros;
 mod data_types;
 mod utils;
 mod handlers;
+mod mw;
 pub mod database;
 
 use std::path::{Path, PathBuf};
@@ -14,7 +15,7 @@ use std::sync::Mutex;
 use std::os::unix::net::UnixStream;
 use lazy_static::lazy_static;
 use redis::Connection;
-use actix_web::{get, post, web, App, HttpServer, Result, HttpMessage, HttpRequest, middleware, http::header::HeaderMap, http::header::Header};
+use actix_web::{get, post, web, App, HttpServer, Result, HttpMessage, HttpRequest, middleware, http::header::HeaderMap, http::header::Header, middleware::Compress};
 use actix_files as fs;
 use serde_json::json;
 use actix_web::web::Json;
@@ -26,14 +27,11 @@ lazy_static! {
 
 #[get("/")]
 fn home_page() -> Result<fs::NamedFile> {
-    utils::log("GET -> /");
     Ok(fs::NamedFile::open("static/build/index.html")?)
 }
 
 #[get("/{file:.*}")]
 fn handlerer(file: web::Path<String>) -> Result<fs::NamedFile> {
-    utils::log(format!("GET -> {}", file.to_string()).as_str());
-
     let req_file = fs::NamedFile::open(Path::new("static/build/").join(file.to_string()));
 
     match req_file {
@@ -43,9 +41,7 @@ fn handlerer(file: web::Path<String>) -> Result<fs::NamedFile> {
 }
 
 #[post("/register")]
-fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessage>) -> Result<String> {
-    utils::log("POST -> /register");
-
+fn register(req: HttpRequest, register_form: Json<data_types::RegisterMessage>) -> Result<String> {
     let header = data_types::AuthHeader::new(&req);
     match header {
         Ok(auth_header) => {
@@ -72,8 +68,6 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
  #[post("/signin")]
  fn signin(req: HttpRequest) -> Result<String> {
      // @todo check if not already signed in
-     utils::log("POST -> /signin");
-
      let header = data_types::AuthHeader::new(&req);
      match header {
          Ok(auth_header) => {
@@ -96,8 +90,6 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
 
  #[post("/verifysession")]
  fn verify_session(req: HttpRequest) -> Result<String> {
-     utils::log("POST -> /verifysession");
-
      match req.cookie("token") {
          Some(cookie) => match utils::check_token(cookie.value(), req.peer_addr().unwrap()) {
              Ok(_) => outcome! {{"status": "ok", "message": ""}},
@@ -108,9 +100,7 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
  }
 
  #[post("/verifyemail")]
- fn verify_email(verify_data: web::Json<data_types::VerifyEmailMessage>) -> Result<String> {
-     utils::log("POST -> /verifyemail");
-
+ fn verify_email(verify_data: Json<data_types::VerifyEmailMessage>) -> Result<String> {
      match handlers::handle_verify_email(verify_data.email.as_str(), verify_data.id.as_str()) {
          Ok(_) => outcome! {{"status": "ok", "message": "verified"}},
          Err(e) => {
@@ -122,8 +112,7 @@ fn register(req: HttpRequest, register_form: web::Json<data_types::RegisterMessa
  }
 
  #[post("/test")]
- fn test_post(message: web::Json<data_types::TestMessage>) -> Result<String> {
-     utils::log("POST -> /test");
+ fn test_post(message: Json<data_types::TestMessage>) -> Result<String> {
      //    let mut stream = UnixStream::connect("/home/yknomeh/socket").unwrap();
  //    stream.write_all(message.0.message.as_bytes()).unwrap();
      outcome! {{"status": "ok"}}
@@ -138,12 +127,13 @@ fn main() {
 
     { let _ = &REDIS.lock().unwrap().is_open(); } // Force initializing redis
 
+    env_logger::init();
     utils::log("Starting the server");
 
     HttpServer::new(
         || App::new()
-            .wrap(middleware::Compress::default())
-            .wrap(middleware::Logger::default())
+            .wrap(Compress::default())
+            .wrap(mw::Logging)
             .service(home_page)
             .service(handlerer)
             .service(register)

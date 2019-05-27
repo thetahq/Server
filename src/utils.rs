@@ -16,6 +16,7 @@ use crate::data_types::AuthHeaderError;
 
 
 pub fn log(message: &str) {
+    //@todo time fix
     let time = chrono::Local::now();
     println!("[{}:{}:{}] {}", time.hour(), time.minute(), time.second(), message);
 }
